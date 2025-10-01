@@ -1,4 +1,5 @@
 from typing import List
+import logging
 import requests
 from bs4 import BeautifulSoup
 
@@ -17,10 +18,8 @@ def _extract_id_from_url(url: str) -> str:
     return ''.join(ch for ch in last if ch.isdigit()) or last
 
 
-def fetch_realt(url: str) -> List[Listing]:
-    resp = requests.get(url, headers=HEADERS, timeout=30)
-    resp.raise_for_status()
-    soup = BeautifulSoup(resp.text, "lxml")
+def parse_realt_html(html: str) -> List[Listing]:
+    soup = BeautifulSoup(html, "lxml")
 
     # Карточки объявлений
     cards = soup.select("a[href*='/rent/flat-for-long/']") or soup.select("a.card-btn")
@@ -60,4 +59,11 @@ def fetch_realt(url: str) -> List[Listing]:
         )
 
     return results
+
+
+def fetch_realt(url: str) -> List[Listing]:
+    logger = logging.getLogger("scraper.realt")
+    resp = requests.get(url, headers=HEADERS, timeout=30)
+    resp.raise_for_status()
+    return parse_realt_html(resp.text)
 

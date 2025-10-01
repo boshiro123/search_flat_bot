@@ -1,4 +1,5 @@
 from typing import List
+import logging
 import requests
 from bs4 import BeautifulSoup
 
@@ -16,10 +17,8 @@ def _extract_id_from_url(url: str) -> str:
     return tail.strip("/")
 
 
-def fetch_domovita(url: str) -> List[Listing]:
-    resp = requests.get(url, headers=HEADERS, timeout=30)
-    resp.raise_for_status()
-    soup = BeautifulSoup(resp.text, "lxml")
+def parse_domovita_html(html: str) -> List[Listing]:
+    soup = BeautifulSoup(html, "lxml")
 
     cards = soup.select("a[href*='/rent/']")
     results: List[Listing] = []
@@ -57,4 +56,11 @@ def fetch_domovita(url: str) -> List[Listing]:
         )
 
     return results
+
+
+def fetch_domovita(url: str) -> List[Listing]:
+    logger = logging.getLogger("scraper.domovita")
+    resp = requests.get(url, headers=HEADERS, timeout=30)
+    resp.raise_for_status()
+    return parse_domovita_html(resp.text)
 
