@@ -1,0 +1,13 @@
+version: "3.9"
+services:
+  search-flat-bot:
+    build: .
+    container_name: search-flat-bot
+    restart: unless-stopped
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - KUFAR_URL=${KUFAR_URL}
+      - DOMOVITA_URL=${DOMOVITA_URL}
+      - REALT_URL=${REALT_URL}
+    volumes:
+      - ./data:/app/data
