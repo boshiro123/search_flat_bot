@@ -6,6 +6,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from ..models import Listing
+from ..utils import normalize_price
 
 
 HEADERS = {
@@ -132,10 +133,7 @@ def fetch_kufar_via_api_from_html(html: str, page_url: str) -> List[Listing]:
 
         # Цена может быть числом, строкой или объектом
         price_val = ad.get("price") or ad.get("price_usd") or ad.get("price_byn") or ad.get("price_byr")
-        if isinstance(price_val, dict):
-            price = price_val.get("display") or price_val.get("value") or None
-        else:
-            price = str(price_val) if price_val is not None else None
+        price = normalize_price(price_val, default_currency="$")
 
         location = (
             ad.get("region_name")

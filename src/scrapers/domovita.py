@@ -4,6 +4,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from ..models import Listing
+from ..utils import normalize_price
 
 
 HEADERS = {
@@ -39,7 +40,7 @@ def parse_domovita_html(html: str) -> List[Listing]:
         if parent:
             price_el = parent.select_one("[class*='price'], [data-qa='price']")
             if price_el:
-                price = price_el.get_text(strip=True) or None
+                price = normalize_price(price_el.get_text(strip=True), default_currency="$")
             loc_el = parent.select_one("[class*='address'], [data-qa='address']")
             if loc_el:
                 location = loc_el.get_text(strip=True) or None
