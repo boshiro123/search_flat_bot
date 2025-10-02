@@ -111,7 +111,7 @@ def fetch_realt_via_json_from_html(html: str) -> List[Listing]:
         obj_uuid = str(obj.get("code") or "")
         if not obj_uuid:
             continue
-        url = f"https://realt.by/rent/flat-for-long/object/{obj_uuid}/"
+        url = f"https://realt.by/s/o/2/{obj_uuid}/"
         title = obj.get("title") or obj.get("headline")
         
         # Цена: price + priceCurrency=840 (USD)
