@@ -1,5 +1,6 @@
-from typing import List
+from typing import List, Optional, Any
 import logging
+import json
 import requests
 from bs4 import BeautifulSoup
 
@@ -66,5 +67,70 @@ def fetch_realt(url: str) -> List[Listing]:
     logger = logging.getLogger("scraper.realt")
     resp = requests.get(url, headers=HEADERS, timeout=30)
     resp.raise_for_status()
+
+    # Попытка дернуть JSON из __NEXT_DATA__
+    try:
+        api_results = fetch_realt_via_json_from_html(resp.text)
+        if api_results:
+            return api_results
+    except Exception as e:
+        logger.warning("realt json extraction failed: %s", e)
+
+    # Фолбэк на простой HTML разметки
     return parse_realt_html(resp.text)
+
+
+def _extract_objects_from_html(html: str) -> Optional[list[Any]]:
+    soup = BeautifulSoup(html, "lxml")
+    script = soup.select_one("script#__NEXT_DATA__")
+    if not script or not script.text:
+        return None
+    try:
+        data = json.loads(script.text)
+    except Exception:
+        return None
+    try:
+        return (
+            data.get("props", {})
+            .get("pageProps", {})
+            .get("initialState", {})
+            .get("objectsListing", {})
+            .get("objects")
+        )
+    except Exception:
+        return None
+
+
+def fetch_realt_via_json_from_html(html: str) -> List[Listing]:
+    objects = _extract_objects_from_html(html)
+    if not objects or not isinstance(objects, list):
+        return []
+
+    results: List[Listing] = []
+    for obj in objects:
+        obj_uuid = str(obj.get("code") or "")
+        if not obj_uuid:
+            continue
+        url = f"https://realt.by/rent/flat-for-long/object/{obj_uuid}/"
+        title = obj.get("title") or obj.get("headline")
+        
+        # Цена: price + priceCurrency=840 (USD)
+        price_val = obj.get("price")
+        price = normalize_price(price_val, default_currency="$")
+
+        # Локация: address или streetName
+        location = obj.get("address") or obj.get("streetName") or obj.get("townName")
+
+        results.append(
+            Listing(
+                source="realt",
+                id=obj_uuid,
+                url=url,
+                title=title,
+                price=price,
+                location=location,
+            )
+        )
+
+    return results
 

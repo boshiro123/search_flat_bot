@@ -1,5 +1,5 @@
 from typing import Iterable
-from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
 from telegram.constants import ParseMode
 from telegram.ext import Application, CommandHandler, ContextTypes, CallbackQueryHandler
 
@@ -26,24 +26,86 @@ class BotApp:
         self.app = Application.builder().token(cfg.telegram_token).build()
         self.app.add_handler(CommandHandler("start", self.cmd_start))
         self.app.add_handler(CommandHandler("stop", self.cmd_stop))
+        self.app.add_handler(CommandHandler("kufar", self.cmd_kufar))
+        self.app.add_handler(CommandHandler("domovita", self.cmd_domovita))
+        self.app.add_handler(CommandHandler("realt", self.cmd_realt))
         self.app.add_handler(CallbackQueryHandler(self.cb_latest, pattern=r"^latest:(kufar|domovita|realt)$"))
 
     async def cmd_start(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         chat_id = update.effective_chat.id
         self.state.add_chat(chat_id)
-        keyboard = InlineKeyboardMarkup([
-            [
-                InlineKeyboardButton(text="Kufar — последнее", callback_data="latest:kufar"),
-                InlineKeyboardButton(text="Domovita — последнее", callback_data="latest:domovita"),
-                InlineKeyboardButton(text="Realt — последнее", callback_data="latest:realt"),
-            ]
-        ])
-        await context.bot.send_message(chat_id=chat_id, text="Подписка оформлена. Выберите источник, чтобы получить последнее объявление:", reply_markup=keyboard)
+        keyboard = ReplyKeyboardMarkup([
+            [KeyboardButton("/kufar"), KeyboardButton("/domovita"), KeyboardButton("/realt")],
+        ], resize_keyboard=True)
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text="Подписка оформлена. Буду присылать новые объявления.\n\n"
+                 "Используйте кнопки ниже для просмотра последних объявлений:",
+            reply_markup=keyboard
+        )
 
     async def cmd_stop(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         chat_id = update.effective_chat.id
         self.state.remove_chat(chat_id)
         await context.bot.send_message(chat_id=chat_id, text="Подписка отменена. Больше не буду присылать.")
+
+    async def cmd_kufar(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        await self._send_latest(update, context, "kufar")
+
+    async def cmd_domovita(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        await self._send_latest(update, context, "domovita")
+
+    async def cmd_realt(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        await self._send_latest(update, context, "realt")
+
+    async def _send_latest(self, update: Update, context: ContextTypes.DEFAULT_TYPE, source: str) -> None:
+        chat_id = update.effective_chat.id
+        from .config import load_config
+        from .scrapers.kufar import fetch_kufar, parse_kufar_html
+        from .scrapers.domovita import fetch_domovita, parse_domovita_html
+        from .scrapers.realt import fetch_realt, parse_realt_html
+        from .browser import fetch_rendered_html
+
+        cfg = load_config()
+        url_map = {
+            "kufar": cfg.kufar_url,
+            "domovita": cfg.domovita_url,
+            "realt": cfg.realt_url,
+        }
+        url = url_map[source]
+
+        # 1) пробуем обычный fetch
+        if source == "kufar":
+            items = fetch_kufar(url)
+        elif source == "domovita":
+            items = fetch_domovita(url)
+        else:
+            items = fetch_realt(url)
+
+        # 2) если пусто — fallback на рендер
+        if not items:
+            try:
+                wait_sel = {
+                    "kufar": "a[href*='/item/']",
+                    "domovita": "a[href*='/rent/']",
+                    "realt": "a[href*='/rent/flat-for-long/']",
+                }[source]
+                html = await fetch_rendered_html(url, wait_selector=wait_sel)
+                if source == "kufar":
+                    items = parse_kufar_html(html)
+                elif source == "domovita":
+                    items = parse_domovita_html(html)
+                else:
+                    items = parse_realt_html(html)
+            except Exception:
+                items = []
+
+        if not items:
+            await context.bot.send_message(chat_id=chat_id, text="Ничего не нашлось. Попробуйте позже.")
+            return
+
+        latest = items[0]
+        await context.bot.send_message(chat_id=chat_id, text=format_listing_message(latest))
 
     async def broadcast(self, items: Iterable[Listing]) -> None:
         if not self.state.chat_ids:
