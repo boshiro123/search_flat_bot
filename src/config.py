@@ -23,7 +23,7 @@ class AppConfig:
 
 def load_config() -> AppConfig:
     # Поддержка дефолтного токена из пользовательского запроса (если .env не задан)
-    token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip() or "8013829336:AAE6xcc3C3F1Rp6_KbZbqJvXSBmTtHnSPGM"
+    token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
     if not token:
         raise RuntimeError("TELEGRAM_BOT_TOKEN не задан")
 
