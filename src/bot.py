@@ -1,4 +1,5 @@
 from typing import Iterable
+import logging
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
 from telegram.constants import ParseMode
 from telegram.ext import Application, CommandHandler, ContextTypes, CallbackQueryHandler
@@ -30,6 +31,7 @@ class BotApp:
         self.app.add_handler(CommandHandler("domovita", self.cmd_domovita))
         self.app.add_handler(CommandHandler("realt", self.cmd_realt))
         self.app.add_handler(CallbackQueryHandler(self.cb_latest, pattern=r"^latest:(kufar|domovita|realt)$"))
+        self.app.add_error_handler(self.error_handler)
 
     async def cmd_start(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         chat_id = update.effective_chat.id
@@ -184,6 +186,12 @@ class BotApp:
 
         latest = items[0]
         await query.edit_message_text(text=format_listing_message(latest))
+
+    async def error_handler(self, update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+        logger = logging.getLogger("bot.error")
+        logger.error("Exception while handling an update:", exc_info=context.error)
+        # Можно отправить уведомление админу, если нужно
+        # В данном случае просто логируем
 
     def run_polling(self) -> None:
         self.app.run_polling(close_loop=False)
