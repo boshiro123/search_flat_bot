@@ -117,7 +117,7 @@ async def poll_once(state: StateStore, bot: BotApp) -> None:
         logger.info("broadcasting %d new items", len(new_items))
     else:
         empty = state.increment_empty_cycle()
-        if empty % 5 == 0:
+        if empty % 10 == 0:
             await bot.notify_no_updates(empty)
         logger.info("no updates this cycle, empty_cycles=%d", empty)
 
