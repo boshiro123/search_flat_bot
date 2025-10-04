@@ -52,11 +52,12 @@ async def poll_once(state: StateStore, bot: BotApp) -> None:
                 kufar_new = len(fresh)
             except Exception as e2:
                 logger.warning("kufar playwright fallback failed: %s", e2)
+        # Обновляем последнюю дату для ВСЕХ полученных объявлений
+        for i in kufar_items:
+            state.update_last_date("kufar", i.created_at)
+        
         if fresh:
             state.mark_seen("kufar", {i.id for i in fresh})
-            # Обновляем последнюю дату
-            for i in fresh:
-                state.update_last_date("kufar", i.created_at)
             new_items.extend(fresh)
         logger.info("kufar: fetched=%d new=%d", kufar_fetched, kufar_new)
         if fresh:
@@ -83,10 +84,12 @@ async def poll_once(state: StateStore, bot: BotApp) -> None:
                 domovita_new = len(fresh)
             except Exception as e2:
                 logger.warning("domovita playwright fallback failed: %s", e2)
+        # Обновляем последнюю дату для ВСЕХ полученных объявлений
+        for i in domovita_items:
+            state.update_last_date("domovita", i.created_at)
+        
         if fresh:
             state.mark_seen("domovita", {i.id for i in fresh})
-            for i in fresh:
-                state.update_last_date("domovita", i.created_at)
             new_items.extend(fresh)
         logger.info("domovita: fetched=%d new=%d", domovita_fetched, domovita_new)
         if fresh:
@@ -113,10 +116,12 @@ async def poll_once(state: StateStore, bot: BotApp) -> None:
                 realt_new = len(fresh)
             except Exception as e2:
                 logger.warning("realt playwright fallback failed: %s", e2)
+        # Обновляем последнюю дату для ВСЕХ полученных объявлений
+        for i in realt_items:
+            state.update_last_date("realt", i.created_at)
+        
         if fresh:
             state.mark_seen("realt", {i.id for i in fresh})
-            for i in fresh:
-                state.update_last_date("realt", i.created_at)
             new_items.extend(fresh)
         logger.info("realt: fetched=%d new=%d", realt_fetched, realt_new)
         if fresh:
