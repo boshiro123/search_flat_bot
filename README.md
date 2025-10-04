@@ -19,9 +19,10 @@ pip install -r requirements.txt
 
 ```env
 TELEGRAM_BOT_TOKEN=8013829336:AAE6xcc3C3F1Rp6_KbZbqJvXSBmTtHnSPGM
+MAX_PRICE=350
 ```
 
-При необходимости измените URL источников.
+При необходимости измените URL источников или максимальную цену (`MAX_PRICE` в USD).
 
 3. Запуск:
 
@@ -29,7 +30,13 @@ TELEGRAM_BOT_TOKEN=8013829336:AAE6xcc3C3F1Rp6_KbZbqJvXSBmTtHnSPGM
 python -m src.main
 ```
 
-Команда в Telegram: `/start` — подписывает чат на уведомления.
+### Команды бота:
+
+- `/start` — подписка на уведомления
+- `/stop` — отписка от уведомлений
+- `/kufar`, `/domovita`, `/realt` — просмотр последнего объявления с источника
+- `/last_dates` — дата и время последних постов по всем источникам
+- `/max_price` — просмотр текущей максимальной цены парсинга
 
 ### Примечания
 
@@ -43,23 +50,35 @@ python -m src.main
 
 ### Запуск в Docker
 
-1. Через docker-compose:
+1. Создайте `.env` файл с переменными:
+
+```env
+TELEGRAM_BOT_TOKEN=8013829336:AAE6xcc3C3F1Rp6_KbZbqJvXSBmTtHnSPGM
+MAX_PRICE=350
+```
+
+2. Запуск через docker-compose:
 
 ```bash
-export TELEGRAM_BOT_TOKEN=8013829336:AAE6xcc3C3F1Rp6_KbZbqJvXSBmTtHnSPGM
 docker compose up -d --build
 ```
 
-2. Логи:
+3. Логи:
 
 ```bash
 docker compose logs -f
 ```
 
-3. Остановка:
+4. Остановка:
 
 ```bash
 docker compose down
 ```
 
-Переменные окружения: `TELEGRAM_BOT_TOKEN`, `KUFAR_URL`, `DOMOVITA_URL`, `REALT_URL`. Состояние хранится на volume `./data:/app/data`.
+### Изменение максимальной цены:
+
+1. Остановите бота: `docker compose down`
+2. Измените `MAX_PRICE` в `.env` файле
+3. Запустите бота: `docker compose up -d`
+
+Переменные окружения: `TELEGRAM_BOT_TOKEN`, `MAX_PRICE`, `KUFAR_URL`, `DOMOVITA_URL`, `REALT_URL`. Состояние хранится на volume `./data:/app/data`.

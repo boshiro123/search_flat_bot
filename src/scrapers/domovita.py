@@ -2,6 +2,7 @@ from typing import List
 import logging
 import requests
 from bs4 import BeautifulSoup
+from datetime import datetime
 
 from ..models import Listing
 from ..utils import normalize_price
@@ -21,30 +22,53 @@ def _extract_id_from_url(url: str) -> str:
 def parse_domovita_html(html: str) -> List[Listing]:
     soup = BeautifulSoup(html, "lxml")
 
-    cards = soup.select("a[href*='/rent/']")
+    # Ищем все контейнеры с объявлениями
+    containers = soup.select("div.found_item[data-key]")
     results: List[Listing] = []
-    seen_urls = set()
-    for a in cards:
-        href = a.get("href")
-        if not href or href in seen_urls:
+    seen_ids = set()
+    
+    for container in containers:
+        # ID из data-key
+        item_id = container.get("data-key")
+        if not item_id or item_id in seen_ids:
             continue
-        seen_urls.add(href)
+        seen_ids.add(item_id)
+        
+        # Ссылка на объявление
+        link = container.select_one("a.link-object, a.title--listing")
+        if not link:
+            continue
+        href = link.get("href")
+        if not href:
+            continue
         full_url = href if href.startswith("http") else f"https://domovita.by{href}"
-        item_id = _extract_id_from_url(full_url)
-
-        # Заголовок и цена часто рядом
-        title = a.get_text(strip=True) or None
-        parent = a.find_parent()
+        
+        # Заголовок
+        title = link.get_text(strip=True) or None
+        
+        # Цена
         price = None
+        price_el = container.select_one("div.price")
+        if price_el:
+            price = normalize_price(price_el.get_text(strip=True), default_currency="$")
+        
+        # Локация
         location = None
-        if parent:
-            price_el = parent.select_one("[class*='price'], [data-qa='price']")
-            if price_el:
-                price = normalize_price(price_el.get_text(strip=True), default_currency="$")
-            loc_el = parent.select_one("[class*='address'], [data-qa='address']")
-            if loc_el:
-                location = loc_el.get_text(strip=True) or None
-
+        loc_el = container.select_one("div.gr, [class*='address']")
+        if loc_el:
+            location = loc_el.get_text(strip=True) or None
+        
+        # Дата: формат "04.10.2025" в <div class="date">
+        created_at = None
+        date_el = container.select_one("div.date")
+        if date_el:
+            date_text = date_el.get_text(strip=True)
+            try:
+                # Парсим дату в формате DD.MM.YYYY
+                created_at = datetime.strptime(date_text, "%d.%m.%Y")
+            except Exception:
+                pass
+        
         results.append(
             Listing(
                 source="domovita",
@@ -53,6 +77,7 @@ def parse_domovita_html(html: str) -> List[Listing]:
                 title=title,
                 price=price,
                 location=location,
+                created_at=created_at,
             )
         )
 

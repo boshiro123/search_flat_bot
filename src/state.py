@@ -67,13 +67,16 @@ class StateStore:
         self._save()
 
     def is_new(self, source: str, item_id: str, created_at: Optional[datetime] = None) -> bool:
-        # Сначала проверяем по ID
+        # Сначала проверяем по ID - это основной критерий
         if item_id in (self.seen_ids_by_source.get(source) or set()):
             return False
+        
         # Если есть дата создания — сравниваем с последней сохранённой датой
+        # Но отклоняем только если дата СТРОГО меньше (created_at < last)
+        # Это позволит обрабатывать несколько объявлений с одинаковой датой (например, Domovita)
         if created_at and source in self.last_date_by_source:
             last = self.last_date_by_source[source]
-            if last and created_at <= last:
+            if last and created_at < last:
                 return False
         return True
     

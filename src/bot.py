@@ -31,6 +31,7 @@ class BotApp:
         self.app.add_handler(CommandHandler("domovita", self.cmd_domovita))
         self.app.add_handler(CommandHandler("realt", self.cmd_realt))
         self.app.add_handler(CommandHandler("last_dates", self.cmd_last_dates))
+        self.app.add_handler(CommandHandler("max_price", self.cmd_max_price))
         self.app.add_handler(CallbackQueryHandler(self.cb_latest, pattern=r"^latest:(kufar|domovita|realt)$"))
         self.app.add_handler(CallbackQueryHandler(self.cb_delete, pattern=r"^delete$"))
         self.app.add_error_handler(self.error_handler)
@@ -40,7 +41,7 @@ class BotApp:
         self.state.add_chat(chat_id)
         keyboard = ReplyKeyboardMarkup([
             [KeyboardButton("/kufar"), KeyboardButton("/domovita"), KeyboardButton("/realt")],
-            [KeyboardButton("/last_dates")],
+            [KeyboardButton("/last_dates"), KeyboardButton("/max_price")],
         ], resize_keyboard=True)
         await context.bot.send_message(
             chat_id=chat_id,
@@ -76,6 +77,20 @@ class BotApp:
                 lines.append(f"• {source.capitalize()}: Нет данных")
         
         await context.bot.send_message(chat_id=chat_id, text="\n".join(lines))
+
+    async def cmd_max_price(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        chat_id = update.effective_chat.id
+        cfg = load_config()
+        text = (
+            f"💰 Текущая максимальная цена: {cfg.max_price} USD\n\n"
+            f"Для изменения цены:\n"
+            f"1. Остановите бота: docker compose down\n"
+            f"2. Измените переменную MAX_PRICE в .env файле\n"
+            f"3. Запустите бота: docker compose up -d\n\n"
+            f"Пример в .env:\n"
+            f"MAX_PRICE=400"
+        )
+        await context.bot.send_message(chat_id=chat_id, text=text)
 
     async def _send_latest(self, update: Update, context: ContextTypes.DEFAULT_TYPE, source: str) -> None:
         chat_id = update.effective_chat.id
