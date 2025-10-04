@@ -16,6 +16,7 @@ class StateStore:
         self.last_date_by_source: Dict[str, Optional[datetime]] = {}
         self.chat_ids: Set[int] = set()
         self.empty_cycles: int = 0
+        self.max_price: Optional[int] = None
         self._load()
 
     def _load(self) -> None:
@@ -31,6 +32,7 @@ class StateStore:
         }
         self.chat_ids = set(data.get("chat_ids") or [])
         self.empty_cycles = int(data.get("empty_cycles") or 0)
+        self.max_price = data.get("max_price")
         # Загрузка дат
         last_dates_raw = data.get("last_date_by_source") or {}
         self.last_date_by_source = {}
@@ -57,6 +59,7 @@ class StateStore:
             "chat_ids": sorted(list(self.chat_ids)),
             "empty_cycles": self.empty_cycles,
             "last_date_by_source": last_dates_ser,
+            "max_price": self.max_price,
         }
         self.path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
@@ -105,4 +108,11 @@ class StateStore:
         if self.empty_cycles != 0:
             self.empty_cycles = 0
             self._save()
+
+    def set_max_price(self, price: int) -> None:
+        self.max_price = price
+        self._save()
+
+    def get_max_price(self) -> Optional[int]:
+        return self.max_price
 

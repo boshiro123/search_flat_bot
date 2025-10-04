@@ -2,11 +2,14 @@ from typing import Iterable
 import logging
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
 from telegram.constants import ParseMode
-from telegram.ext import Application, CommandHandler, ContextTypes, CallbackQueryHandler
+from telegram.ext import Application, CommandHandler, ContextTypes, CallbackQueryHandler, MessageHandler, filters, ConversationHandler
 
 from .config import load_config
 from .state import StateStore
 from .models import Listing
+
+# Состояния для conversation handler
+WAITING_FOR_PRICE = 1
 
 
 def format_listing_message(item: Listing) -> str:
@@ -31,7 +34,17 @@ class BotApp:
         self.app.add_handler(CommandHandler("domovita", self.cmd_domovita))
         self.app.add_handler(CommandHandler("realt", self.cmd_realt))
         self.app.add_handler(CommandHandler("last_dates", self.cmd_last_dates))
-        self.app.add_handler(CommandHandler("max_price", self.cmd_max_price))
+        
+        # Conversation handler для изменения цены
+        price_conv_handler = ConversationHandler(
+            entry_points=[CommandHandler("max_price", self.cmd_max_price)],
+            states={
+                WAITING_FOR_PRICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_new_price)],
+            },
+            fallbacks=[CommandHandler("cancel", self.cmd_cancel)],
+        )
+        self.app.add_handler(price_conv_handler)
+        
         self.app.add_handler(CallbackQueryHandler(self.cb_latest, pattern=r"^latest:(kufar|domovita|realt)$"))
         self.app.add_handler(CallbackQueryHandler(self.cb_delete, pattern=r"^delete$"))
         self.app.add_error_handler(self.error_handler)
@@ -78,19 +91,55 @@ class BotApp:
         
         await context.bot.send_message(chat_id=chat_id, text="\n".join(lines))
 
-    async def cmd_max_price(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def cmd_max_price(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         chat_id = update.effective_chat.id
-        cfg = load_config()
+        # Получаем текущую цену из state или config
+        current_price = self.state.get_max_price()
+        if current_price is None:
+            cfg = load_config()
+            current_price = cfg.max_price
+        
         text = (
-            f"💰 Текущая максимальная цена: {cfg.max_price} USD\n\n"
-            f"Для изменения цены:\n"
-            f"1. Остановите бота: docker compose down\n"
-            f"2. Измените переменную MAX_PRICE в .env файле\n"
-            f"3. Запустите бота: docker compose up -d\n\n"
-            f"Пример в .env:\n"
-            f"MAX_PRICE=400"
+            f"💰 Текущая максимальная цена: {current_price} USD\n\n"
+            f"Введите новую максимальную цену (в USD) или /cancel для отмены:"
         )
         await context.bot.send_message(chat_id=chat_id, text=text)
+        return WAITING_FOR_PRICE
+
+    async def handle_new_price(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+        chat_id = update.effective_chat.id
+        text = update.message.text.strip()
+        
+        try:
+            new_price = int(text)
+            if new_price <= 0:
+                await context.bot.send_message(
+                    chat_id=chat_id,
+                    text="❌ Цена должна быть положительным числом. Попробуйте еще раз или /cancel:"
+                )
+                return WAITING_FOR_PRICE
+            
+            # Сохраняем новую цену
+            self.state.set_max_price(new_price)
+            
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=f"✅ Максимальная цена изменена на {new_price} USD\n\n"
+                     f"Новая цена будет применена при следующем цикле парсинга (в течение 60 секунд)."
+            )
+            return ConversationHandler.END
+            
+        except ValueError:
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text="❌ Пожалуйста, введите корректное число или /cancel для отмены:"
+            )
+            return WAITING_FOR_PRICE
+
+    async def cmd_cancel(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+        chat_id = update.effective_chat.id
+        await context.bot.send_message(chat_id=chat_id, text="Отменено.")
+        return ConversationHandler.END
 
     async def _send_latest(self, update: Update, context: ContextTypes.DEFAULT_TYPE, source: str) -> None:
         chat_id = update.effective_chat.id

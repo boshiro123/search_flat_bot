@@ -22,7 +22,7 @@ class AppConfig:
     realt_url: str
 
 
-def load_config() -> AppConfig:
+def load_config(override_max_price: int = None) -> AppConfig:
     # Поддержка дефолтного токена из пользовательского запроса (если .env не задан)
     token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
     if not token:
@@ -34,11 +34,15 @@ def load_config() -> AppConfig:
         return val or default
 
     # Максимальная цена парсинга (USD)
-    max_price_str = os.getenv("MAX_PRICE", "350").strip()
-    try:
-        max_price = int(max_price_str)
-    except ValueError:
-        max_price = 350
+    # Приоритет: override_max_price > MAX_PRICE из .env > 350
+    if override_max_price is not None:
+        max_price = override_max_price
+    else:
+        max_price_str = os.getenv("MAX_PRICE", "350").strip()
+        try:
+            max_price = int(max_price_str)
+        except ValueError:
+            max_price = 350
 
     return AppConfig(
         telegram_token=token,

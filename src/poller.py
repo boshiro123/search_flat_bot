@@ -15,7 +15,8 @@ from .browser import fetch_rendered_html
 async def poll_once(state: StateStore, bot: BotApp) -> None:
     logger = logging.getLogger("poller")
     t0 = time.perf_counter()
-    cfg = load_config()
+    # Загружаем конфиг с учетом цены из state (если установлена)
+    cfg = load_config(override_max_price=state.get_max_price())
     logger.info("cycle start")
 
     # Первый запуск: прогреваем кэш и выходим без рассылки
