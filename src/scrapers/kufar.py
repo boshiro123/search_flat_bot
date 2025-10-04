@@ -2,6 +2,7 @@ from typing import Iterable, List, Optional, Any
 import logging
 import json
 from urllib.parse import urlencode
+from datetime import datetime
 import requests
 from bs4 import BeautifulSoup
 
@@ -142,6 +143,19 @@ def fetch_kufar_via_api_from_html(html: str, page_url: str) -> List[Listing]:
             or ad.get("region")
         )
 
+        # Дата создания: list_time или created_at
+        created_at = None
+        date_str = ad.get("list_time") or ad.get("created_at") or ad.get("listTime")
+        if date_str:
+            try:
+                # Формат ISO: 2025-10-01T20:22:05+03:00 или timestamp
+                if isinstance(date_str, (int, float)):
+                    created_at = datetime.fromtimestamp(date_str)
+                else:
+                    created_at = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+            except Exception:
+                pass
+
         results.append(
             Listing(
                 source="kufar",
@@ -150,6 +164,7 @@ def fetch_kufar_via_api_from_html(html: str, page_url: str) -> List[Listing]:
                 title=title,
                 price=price,
                 location=location,
+                created_at=created_at,
             )
         )
 

@@ -30,7 +30,9 @@ class BotApp:
         self.app.add_handler(CommandHandler("kufar", self.cmd_kufar))
         self.app.add_handler(CommandHandler("domovita", self.cmd_domovita))
         self.app.add_handler(CommandHandler("realt", self.cmd_realt))
+        self.app.add_handler(CommandHandler("last_dates", self.cmd_last_dates))
         self.app.add_handler(CallbackQueryHandler(self.cb_latest, pattern=r"^latest:(kufar|domovita|realt)$"))
+        self.app.add_handler(CallbackQueryHandler(self.cb_delete, pattern=r"^delete$"))
         self.app.add_error_handler(self.error_handler)
 
     async def cmd_start(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -38,6 +40,7 @@ class BotApp:
         self.state.add_chat(chat_id)
         keyboard = ReplyKeyboardMarkup([
             [KeyboardButton("/kufar"), KeyboardButton("/domovita"), KeyboardButton("/realt")],
+            [KeyboardButton("/last_dates")],
         ], resize_keyboard=True)
         await context.bot.send_message(
             chat_id=chat_id,
@@ -59,6 +62,20 @@ class BotApp:
 
     async def cmd_realt(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await self._send_latest(update, context, "realt")
+
+    async def cmd_last_dates(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        chat_id = update.effective_chat.id
+        lines = ["📅 Дата и время последних постов:\n"]
+        
+        for source in ["kufar", "domovita", "realt"]:
+            last_date = self.state.last_date_by_source.get(source)
+            if last_date:
+                formatted = last_date.strftime("%Y-%m-%d %H:%M:%S")
+                lines.append(f"• {source.capitalize()}: {formatted}")
+            else:
+                lines.append(f"• {source.capitalize()}: Нет данных")
+        
+        await context.bot.send_message(chat_id=chat_id, text="\n".join(lines))
 
     async def _send_latest(self, update: Update, context: ContextTypes.DEFAULT_TYPE, source: str) -> None:
         chat_id = update.effective_chat.id
@@ -113,10 +130,17 @@ class BotApp:
         if not self.state.chat_ids:
             return
         text_chunks = [format_listing_message(i) for i in items]
+        delete_button = InlineKeyboardMarkup([[InlineKeyboardButton(text="🗑 Удалить", callback_data="delete")]])
         for chat_id in list(self.state.chat_ids):
             for text in text_chunks:
                 try:
-                    await self.app.bot.send_message(chat_id=chat_id, text=text, parse_mode=ParseMode.HTML, disable_web_page_preview=False)
+                    await self.app.bot.send_message(
+                        chat_id=chat_id,
+                        text=text,
+                        parse_mode=ParseMode.HTML,
+                        disable_web_page_preview=False,
+                        reply_markup=delete_button
+                    )
                 except Exception:
                     # Ошибки чата игнорируем, чтобы не падал процесс
                     continue
@@ -186,6 +210,14 @@ class BotApp:
 
         latest = items[0]
         await query.edit_message_text(text=format_listing_message(latest))
+
+    async def cb_delete(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        query = update.callback_query
+        await query.answer()
+        try:
+            await query.message.delete()
+        except Exception:
+            await query.answer("Не удалось удалить сообщение", show_alert=True)
 
     async def error_handler(self, update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
         logger = logging.getLogger("bot.error")

@@ -1,6 +1,7 @@
 from typing import List, Optional, Any
 import logging
 import json
+from datetime import datetime
 import requests
 from bs4 import BeautifulSoup
 
@@ -121,6 +122,15 @@ def fetch_realt_via_json_from_html(html: str) -> List[Listing]:
         # Локация: address или streetName
         location = obj.get("address") or obj.get("streetName") or obj.get("townName")
 
+        # Дата создания: createdAt
+        created_at = None
+        date_str = obj.get("createdAt") or obj.get("created_at")
+        if date_str:
+            try:
+                created_at = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+            except Exception:
+                pass
+
         results.append(
             Listing(
                 source="realt",
@@ -129,6 +139,7 @@ def fetch_realt_via_json_from_html(html: str) -> List[Listing]:
                 title=title,
                 price=price,
                 location=location,
+                created_at=created_at,
             )
         )
 
