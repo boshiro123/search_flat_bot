@@ -49,15 +49,15 @@ def load_config(override_max_price: int = None) -> AppConfig:
         max_price=max_price,
         kufar_url=env_or_default(
             "KUFAR_URL",
-            f"https://re.kufar.by/l/minsk/snyat/kvartiru?cur=USD&prc=r%3A0%2C{max_price}",
+            f"https://re.kufar.by/l/minsk/snyat/kvartiru?cur=USD&prc=r%3A0%2C{max_price}&size=60&sort=lst.d",
         ),
         domovita_url=env_or_default(
             "DOMOVITA_URL",
-            f"https://domovita.by/minsk/flats/rent?rooms=1%2C2&price%5Bmin%5D=&price%5Bmax%5D={max_price}&price_type=all_usd",
+            f"https://domovita.by/minsk/flats/rent?rooms=1%2C2&price%5Bmin%5D=&price%5Bmax%5D={max_price}&price_type=all_usd&order=-date_revision",
         ),
         realt_url=env_or_default(
             "REALT_URL",
-            f"https://realt.by/rent/flat-for-long/?addressV2=%5B%7B%22townUuid%22%3A%224cb07174-7b00-11eb-8943-0cc47adabd66%22%7D%5D&page=1&priceTo={max_price}&priceType=840&rooms=1&rooms=2",
+            f"https://realt.by/rent/flat-for-long/?addressV2=%5B%7B%22townUuid%22%3A%224cb07174-7b00-11eb-8943-0cc47adabd66%22%7D%5D&page=1&priceTo={max_price}&priceType=840&rooms=1&rooms=2&sortType=createdAt",
         ),
     )
 

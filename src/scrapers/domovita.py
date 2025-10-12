@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup
 from datetime import datetime
 
 from ..models import Listing
-from ..utils import normalize_price
+from ..utils import normalize_price, normalize_datetime
 
 
 HEADERS = {
@@ -64,8 +64,8 @@ def parse_domovita_html(html: str) -> List[Listing]:
         if date_el:
             date_text = date_el.get_text(strip=True)
             try:
-                # Парсим дату в формате DD.MM.YYYY
-                created_at = datetime.strptime(date_text, "%d.%m.%Y")
+                # Парсим дату в формате DD.MM.YYYY и нормализуем к UTC
+                created_at = normalize_datetime(datetime.strptime(date_text, "%d.%m.%Y"))
             except Exception:
                 pass
         

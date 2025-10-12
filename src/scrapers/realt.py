@@ -6,7 +6,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from ..models import Listing
-from ..utils import normalize_price
+from ..utils import normalize_price, normalize_datetime
 
 
 HEADERS = {
@@ -122,12 +122,13 @@ def fetch_realt_via_json_from_html(html: str) -> List[Listing]:
         # Локация: address или streetName
         location = obj.get("address") or obj.get("streetName") or obj.get("townName")
 
-        # Дата создания: createdAt
+        # Дата: используем updatedAt (когда объявление обновлено), т.к. createdAt может быть очень старым
         created_at = None
-        date_str = obj.get("createdAt") or obj.get("created_at")
+        # Приоритет: updatedAt > createdAt
+        date_str = obj.get("updatedAt") or obj.get("updated_at") or obj.get("createdAt") or obj.get("created_at")
         if date_str:
             try:
-                created_at = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+                created_at = normalize_datetime(datetime.fromisoformat(date_str.replace("Z", "+00:00")))
             except Exception:
                 pass
 

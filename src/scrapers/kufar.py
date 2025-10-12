@@ -7,7 +7,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from ..models import Listing
-from ..utils import normalize_price
+from ..utils import normalize_price, normalize_datetime
 
 
 HEADERS = {
@@ -150,9 +150,9 @@ def fetch_kufar_via_api_from_html(html: str, page_url: str) -> List[Listing]:
             try:
                 # Формат ISO: 2025-10-01T20:22:05+03:00 или timestamp
                 if isinstance(date_str, (int, float)):
-                    created_at = datetime.fromtimestamp(date_str)
+                    created_at = normalize_datetime(datetime.fromtimestamp(date_str))
                 else:
-                    created_at = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+                    created_at = normalize_datetime(datetime.fromisoformat(date_str.replace("Z", "+00:00")))
             except Exception:
                 pass
 
