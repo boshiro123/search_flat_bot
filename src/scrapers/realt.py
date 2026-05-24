@@ -91,13 +91,18 @@ def _extract_objects_from_html(html: str) -> Optional[list[Any]]:
     except Exception:
         return None
     try:
-        return (
-            data.get("props", {})
-            .get("pageProps", {})
-            .get("initialState", {})
+        page_props = data.get("props", {}).get("pageProps", {})
+        # Актуальная структура (pageProps.objects)
+        objects = page_props.get("objects")
+        if objects and isinstance(objects, list):
+            return objects
+        # Старая структура (initialState.objectsListing.objects)
+        legacy = (
+            page_props.get("initialState", {})
             .get("objectsListing", {})
             .get("objects")
         )
+        return legacy if isinstance(legacy, list) else None
     except Exception:
         return None
 
@@ -122,10 +127,9 @@ def fetch_realt_via_json_from_html(html: str) -> List[Listing]:
         # Локация: address или streetName
         location = obj.get("address") or obj.get("streetName") or obj.get("townName")
 
-        # Дата: используем updatedAt (когда объявление обновлено), т.к. createdAt может быть очень старым
+        # Дата публикации: createdAt — для новых объявлений; updatedAt только как запасной вариант
         created_at = None
-        # Приоритет: updatedAt > createdAt
-        date_str = obj.get("updatedAt") or obj.get("updated_at") or obj.get("createdAt") or obj.get("created_at")
+        date_str = obj.get("createdAt") or obj.get("created_at") or obj.get("updatedAt") or obj.get("updated_at")
         if date_str:
             try:
                 created_at = normalize_datetime(datetime.fromisoformat(date_str.replace("Z", "+00:00")))
